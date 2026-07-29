@@ -1,0 +1,9 @@
+services:
+  web:
+    build: .
+    environment:
+      PORT: 3000
+      MOCK_MODE: "true"
+    ports: ["3000:3000"]
+    read_only: true
+    tmpfs: ["/tmp"]
