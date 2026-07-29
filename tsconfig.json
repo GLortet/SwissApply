@@ -3,7 +3,6 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "types": ["node"],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
@@ -13,6 +12,6 @@
     "sourceMap": true,
     "skipLibCheck": true
   },
-  "include": ["apps/**/*.ts", "packages/**/*.ts"],
+  "include": ["apps/**/*.ts", "packages/**/*.ts", "types/**/*.d.ts"],
   "exclude": ["dist"]
 }

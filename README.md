@@ -4,43 +4,15 @@ Application privée de préparation contrôlée de candidatures suisses. Cette p
 
 ## Démarrage
 
-Prérequis : Node.js 20+ avec npm. TypeScript et les types Node sont verrouillés dans les dépendances de développement : aucune installation globale de `tsc` n'est nécessaire.
+Prérequis : Node.js 20+ et `tsc` (TypeScript 6 est disponible dans l'environnement de référence).
 
 ```bash
-npm ci
 npm run check
 npm run build
 npm start
 ```
 
 Ouvrir <http://localhost:3000>. L'API de démonstration est disponible sur `GET /api/facts`. Les décisions sont acceptées par `POST /api/facts/:id/decision` avec `{ "action": "verify" | "reject" }`. Les données sont fictives et en mémoire : un redémarrage les réinitialise.
-
-### Windows (PowerShell)
-
-1. Installer [Node.js 20 LTS ou une version ultérieure](https://nodejs.org/), puis ouvrir un nouveau terminal PowerShell.
-2. Depuis le dossier cloné, installer exactement les versions verrouillées, vérifier et lancer :
-
-```powershell
-node --version
-npm --version
-npm ci
-npm run check
-npm run build
-npm start
-```
-
-3. Ouvrir `http://localhost:3000` dans le navigateur. Arrêter avec `Ctrl+C`. Les commandes ne nécessitent ni WSL, ni TypeScript global, ni variable secrète en mode Mock.
-
-### Docker
-
-Prérequis : Docker Desktop (Windows/macOS) ou Docker Engine avec le plugin Compose.
-
-```bash
-docker compose build --no-cache
-docker compose up
-```
-
-Ouvrir <http://localhost:3000>, puis arrêter avec `Ctrl+C` et `docker compose down`. L'image installe les dépendances avec `npm ci` dans l'étape de compilation, n'embarque que le JavaScript compilé et exécute le serveur avec l'utilisateur non privilégié `node`.
 
 ## Ce qui fonctionne réellement
 
@@ -53,7 +25,7 @@ Ouvrir <http://localhost:3000>, puis arrêter avec `Ctrl+C` et `docker compose d
 
 ## Limites actuelles
 
-Ce commit n'importe pas encore de PDF/DOCX, ne persiste pas les données, ne scanne aucune source et ne génère/soumet aucun document. Les boutons correspondants sont donc absents. Le choix Next.js/PostgreSQL reste la cible; le jalon 0 conserve temporairement le serveur HTTP natif de Node et une mémoire locale afin de stabiliser ce socle avant le jalon suivant. Voir [ADR-0001](docs/adr/0001-runtime-bootstrap.md).
+Ce commit n'importe pas encore de PDF/DOCX, ne persiste pas les données, ne scanne aucune source et ne génère/soumet aucun document. Les boutons correspondants sont donc absents. Le choix Next.js/PostgreSQL reste la cible, mais le registre npm est bloqué par une politique HTTP 403 dans cet environnement; le jalon 0 utilise temporairement le serveur HTTP natif de Node et une mémoire locale. Voir [ADR-0001](docs/adr/0001-runtime-bootstrap.md).
 
 ## Données, sécurité et récupération
 
