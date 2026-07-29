@@ -35,9 +35,10 @@ Sans variable, le stockage est `storage/private/`, toujours ignoré par Git.
 
 1. **Documents** : choisir CV, dossier de compétences, certificat de travail, diplôme ou attestation; déposer ou sélectionner plusieurs PDF/DOCX de 10 Mo maximum.
 2. Consulter le statut, la date, le texte extrait et sa provenance par page PDF ou section DOCX.
-3. **Base de vérité** : ajouter ou modifier un fait, puis le valider ou le refuser. Une extraction demeure `PROPOSED` jusqu'à une validation humaine.
-4. Les contradictions sont signalées et peuvent être fusionnées. La formulation fusionnée reste `PROPOSED` et doit être validée.
-5. Exporter la Base de vérité en JSON ou supprimer un document après confirmation. La suppression retire aussi ses faits.
+3. **Base de vérité** : examiner les faits atomiques regroupés par catégorie, entité et champ; filtrer par statut/catégorie, rechercher, consulter toutes les sources, puis modifier, valider ou refuser. Une extraction demeure `PROPOSED` jusqu'à une validation humaine.
+4. Les doublons exacts sont consolidés avec plusieurs sources. Une contradiction n'est signalée que pour deux valeurs différentes du même champ de la même entité; une fusion reste `PROPOSED` et doit être validée.
+5. **Réanalyser les documents** reconstruit les propositions depuis les textes déjà conservés. Les faits manuels, `VERIFIED` et `REJECTED` sont préservés; les anciennes propositions automatiques sont archivées, jamais supprimées silencieusement.
+6. Exporter la Base de vérité en JSON ou supprimer un document après confirmation. La suppression retire aussi ses faits.
 
 ## Mode Démonstration séparé
 
@@ -58,8 +59,10 @@ L'import et la suppression de documents sont désactivés dans ce mode.
 
 - Validation du nom, extension, MIME, signature et taille; rejet des traversées de chemin et noms internes opaques.
 - Écritures JSON atomiques et permissions privées quand le système les prend en charge; contenu affiché après échappement HTML.
+- Le schéma persistant est versionné. Une migration crée une sauvegarde locale de `data.json` avant écriture et corrige les noms présentant un mojibake UTF-8 identifiable sans ambiguïté.
 - Les fichiers importés sont des données non fiables. Aucun appel externe ou envoi n'est effectué.
 - Seuls des faits `VERIFIED` pourront alimenter une candidature; cette version ne comporte aucune candidature.
+- L'analyse est déterministe : elle reconnaît les libellés et structures explicites, mais ne déduit pas une information absente. Les mises en page complexes, tableaux, formulations libres et rattachements ambigus peuvent rester non extraits ou `NEEDS_CONFIRMATION` et exigent une relecture humaine.
 - Pas d'OCR pour les PDF image, de chiffrement applicatif, d'accès concurrent, de sauvegarde automatique ou de restauration d'un export dans l'interface.
 - Scan Internet, horaire de 06:00, génération documentaire, LinkedIn et soumission restent à construire.
 
