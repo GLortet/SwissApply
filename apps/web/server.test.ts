@@ -1,77 +1,27 @@
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
+import { Document, Packer, Paragraph } from "docx";
+import PDFDocument from "pdfkit";
 
-const port = 31991;
-const origin = `http://127.0.0.1:${port}`;
+const port=31991,origin=`http://127.0.0.1:${port}`,serverPath=fileURLToPath(new URL("./server.js",import.meta.url));
+interface Running { process:ChildProcess; output:()=>string }
+function start(storage:string,mode?:"demo"):Running{let output="";const child=spawn(process.execPath,[serverPath],{env:{...process.env,PORT:String(port),SWISSAPPLY_STORAGE_DIR:storage,...(mode?{SWISSAPPLY_MODE:mode}:{})},stdio:["ignore","pipe","pipe"]});child.stdout?.on("data",chunk=>output+=String(chunk));child.stderr?.on("data",chunk=>output+=String(chunk));return {process:child,output:()=>output};}
+async function ready(server:Running){for(let attempt=0;attempt<100;attempt++){if(server.process.exitCode!==null)throw new Error(`Serveur arrêté avec ${server.process.exitCode}: ${server.output()}`);try{if((await fetch(`${origin}/api/status`)).ok)return}catch{}await new Promise(resolve=>setTimeout(resolve,50))}throw new Error(`Serveur indisponible: ${server.output()}`)}
+async function stop(server:Running){if(server.process.exitCode===null){server.process.kill();await new Promise<void>(resolve=>server.process.once("exit",()=>resolve()))}}
+async function pdf(text:string){return new Promise<Buffer>((resolve,reject)=>{const chunks:Buffer[]=[];const document=new PDFDocument();document.on("data",chunk=>chunks.push(chunk as Buffer));document.on("end",()=>resolve(Buffer.concat(chunks)));document.on("error",reject);document.text(text);document.end()})}
+async function upload(name:string,mime:string,bytes:Uint8Array,type="CV"){const form=new FormData();form.set("type",type);const copy=new Uint8Array(bytes.byteLength);copy.set(bytes);form.append("files",new Blob([copy.buffer],{type:mime}),name);return fetch(`${origin}/api/documents`,{method:"POST",body:form})}
+const post=(url:string,value:unknown,method="POST")=>fetch(`${origin}${url}`,{method,headers:{"content-type":"application/json"},body:JSON.stringify(value)});
 
-function startServer(): ChildProcess {
-  return spawn(process.execPath, [new URL("./server.js", import.meta.url).pathname], {
-    env: { ...process.env, PORT: String(port) },
-    stdio: "ignore",
-  });
-}
-
-async function stopServer(server: ChildProcess): Promise<void> {
-  if (server.exitCode !== null) return;
-  server.kill("SIGTERM");
-  await new Promise<void>((resolve) => server.once("exit", () => resolve()));
-}
-
-async function waitUntilReady(): Promise<void> {
-  for (let attempt = 0; attempt < 40; attempt += 1) {
-    try {
-      const response = await fetch(`${origin}/api/facts`);
-      if (response.ok) return;
-    } catch {
-      // Le processus peut ne pas encore avoir ouvert son port.
-    }
-    await new Promise((resolve) => setTimeout(resolve, 25));
-  }
-  throw new Error("Le serveur Mock n'a pas démarré dans le délai imparti.");
-}
-
-async function decide(id: string, action: "verify" | "reject") {
-  const response = await fetch(`${origin}/api/facts/${id}/decision`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ action }),
-  });
-  assert.equal(response.status, 200);
-  return response.json() as Promise<{ status: string }>;
-}
-
-test("le parcours Mock valide, refuse puis réinitialise les faits au redémarrage", async () => {
-  let server = startServer();
-  try {
-    await waitUntilReady();
-
-    const home = await fetch(origin);
-    assert.equal(home.status, 200);
-    const html = await home.text();
-    assert.match(html, /<title>SwissApply — Base de vérité<\/title>/);
-    assert.match(html, />Valider<\/button>/);
-    assert.match(html, />Refuser<\/button>/);
-
-    const initial = await fetch(`${origin}/api/facts`).then((response) => response.json()) as {
-      facts: Array<{ id: string; status: string }>;
-    };
-    assert.equal(initial.facts.length, 3);
-    assert.equal(initial.facts.find(({ id }) => id === "fact_mock_003")?.status, "PROPOSED");
-
-    assert.equal((await decide("fact_mock_003", "verify")).status, "VERIFIED");
-    assert.equal((await decide("fact_mock_001", "reject")).status, "REJECTED");
-
-    await stopServer(server);
-    server = startServer();
-    await waitUntilReady();
-
-    const restarted = await fetch(`${origin}/api/facts`).then((response) => response.json()) as {
-      facts: Array<{ id: string; status: string }>;
-    };
-    assert.equal(restarted.facts.find(({ id }) => id === "fact_mock_003")?.status, "PROPOSED");
-    assert.equal(restarted.facts.find(({ id }) => id === "fact_mock_001")?.status, "PROPOSED");
-  } finally {
-    await stopServer(server);
-  }
-});
+test("bibliothèque privée complète, persistante et isolée de la démonstration",async()=>{const storage=await mkdtemp(path.join(tmpdir(),"swissapply-"));let server=start(storage);try{await ready(server);const home=await fetch(origin).then(response=>response.text());assert.match(home,/Tableau de bord/);assert.match(home,/Documents/);assert.match(home,/Base de vérité/);assert.deepEqual((await fetch(`${origin}/api/facts`).then(response=>response.json()) as {facts:unknown[]}).facts,[]);
+ const pdfMime="application/pdf",docxMime="application/vnd.openxmlformats-officedocument.wordprocessingml.document";assert.equal((await upload("cv-fictif.pdf",pdfMime,new Uint8Array(await pdf("Poste: Responsable méthodes")))).status,201);const docx=new Uint8Array(await Packer.toBuffer(new Document({sections:[{children:[new Paragraph("Poste: Ingénieur méthodes")] }]})));assert.equal((await upload("dossier-fictif.docx",docxMime,docx,"COMPETENCY_FILE")).status,201);
+ let result=await fetch(`${origin}/api/facts`).then(response=>response.json()) as {facts:Array<{id:string;canonical:string;status:string}>;contradictions:Array<{factIds:string[]}>};assert.equal(result.contradictions.length,1);assert.ok(result.facts.some(fact=>fact.canonical.includes("Responsable")));const first=result.facts[0]!,second=result.facts[1]!;assert.equal((await post("/api/contradictions/merge",{factIds:result.contradictions[0]!.factIds,canonical:"Poste: Méthodes"})).status,200);
+ assert.equal((await post("/api/facts",{canonical:"Fait ajouté manuellement"})).status,201);assert.equal((await post(`/api/facts/${first.id}`,{canonical:"Poste: Responsable industrialisation"},"PATCH")).status,200);assert.equal((await post(`/api/facts/${first.id}/decision`,{action:"verify"}).then(response=>response.json()) as {status:string}).status,"VERIFIED");assert.equal((await post(`/api/facts/${second.id}/decision`,{action:"reject"}).then(response=>response.json()) as {status:string}).status,"REJECTED");
+ assert.equal((await upload("malware.exe","application/octet-stream",new TextEncoder().encode("invalid"))).status,400);const exported=await fetch(`${origin}/api/export`);assert.equal(exported.status,200);assert.match(exported.headers.get("content-disposition")??"",/attachment/);assert.ok((await exported.json() as {facts:unknown[]}).facts.length>=3);
+ await stop(server);server=start(storage);await ready(server);let documents=await fetch(`${origin}/api/documents`).then(response=>response.json()) as {documents:Array<{id:string;extractedText:string}>};assert.equal(documents.documents.length,2);assert.ok(documents.documents.every(document=>document.extractedText.length>0));assert.equal((await fetch(`${origin}/api/documents/${documents.documents[0]!.id}`,{method:"DELETE"})).status,200);documents=await fetch(`${origin}/api/documents`).then(response=>response.json()) as typeof documents;assert.equal(documents.documents.length,1);
+ await stop(server);server=start(storage,"demo");await ready(server);const demo=await fetch(`${origin}/api/status`).then(response=>response.json()) as {mode:string;facts:number};assert.equal(demo.mode,"DEMONSTRATION");assert.equal(demo.facts,3);assert.equal((await fetch(`${origin}/api/documents`)).status,200);
+ }finally{await stop(server);await rm(storage,{recursive:true,force:true})}});

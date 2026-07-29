@@ -1,75 +1,76 @@
-# SwissApply Agent
+# SwissApply Agent — bibliothèque privée
 
-Application privée de préparation contrôlée de candidatures suisses. Cette première tranche verticale fournit un **jalon 0 exécutable** et le noyau du **jalon 1 (Truth Base en mode Mock)**, sans donnée personnelle réelle, clé API ou action externe.
+Jalon 1 réellement utilisable : import privé de PDF/DOCX, extraction de texte, propositions de faits et Base de vérité persistante. Le scan d'offres, la génération de CV/lettres et les candidatures ne sont pas implémentés.
 
-## Démarrage
+## Installation et démarrage
 
-Prérequis : Node.js 20+ avec npm. TypeScript et les types Node sont verrouillés dans les dépendances de développement : aucune installation globale de `tsc` n'est nécessaire.
+Prérequis : Node.js 20 ou supérieur. Aucun compte, Docker, secret ou service payant n'est requis.
 
-```bash
-npm ci
-npm run check
-npm run build
-npm start
-```
-
-Ouvrir <http://localhost:3000>. L'API de démonstration est disponible sur `GET /api/facts`. Les décisions sont acceptées par `POST /api/facts/:id/decision` avec `{ "action": "verify" | "reject" }`. Les données sont fictives et en mémoire : un redémarrage les réinitialise.
-
-`npm run check` inclut un test de fumée qui démarre le serveur compilé, ouvre la page et l'API, vérifie les actions **Valider** et **Refuser**, redémarre le processus puis confirme le retour aux fixtures initiales.
-
-### Windows (PowerShell)
-
-1. Installer [Node.js 20 LTS ou une version ultérieure](https://nodejs.org/), puis ouvrir un nouveau terminal PowerShell.
-2. Depuis le dossier cloné, installer exactement les versions verrouillées, vérifier et lancer :
+### Windows PowerShell
 
 ```powershell
-node --version
-npm --version
+git clone <URL_DU_DEPOT>
+cd SwissApply
 npm ci
 npm run check
 npm run build
+$env:SWISSAPPLY_STORAGE_DIR="$env:LOCALAPPDATA\SwissApply\private"
 npm start
 ```
 
-3. Ouvrir `http://localhost:3000` dans le navigateur. Arrêter avec `Ctrl+C`. Les commandes ne nécessitent ni WSL, ni TypeScript global, ni variable secrète en mode Mock.
+Ouvrir <http://localhost:3000>. Arrêter avec `Ctrl+C`. Lors des démarrages suivants, exécuter `npm run build` après une mise à jour du code, puis `npm start`. Les documents et décisions restent dans `%LOCALAPPDATA%\SwissApply\private`.
 
-### Docker
-
-Prérequis : Docker Desktop (Windows/macOS) ou Docker Engine avec le plugin Compose.
+### Linux / macOS
 
 ```bash
-docker compose build --no-cache
-docker compose up
+npm ci
+npm run check
+npm run build
+SWISSAPPLY_STORAGE_DIR="$HOME/.local/share/swissapply/private" npm start
 ```
 
-Ouvrir <http://localhost:3000>, puis arrêter avec `Ctrl+C` et `docker compose down`. L'image installe les dépendances avec `npm ci` dans l'étape de compilation, n'embarque que le JavaScript compilé et exécute le serveur avec l'utilisateur non privilégié `node`.
+Sans variable, le stockage est `storage/private/`, toujours ignoré par Git.
 
-## Ce qui fonctionne réellement
+## Parcours disponible
 
-- modèle strict des faits avec provenance, confiance, statut et historique;
-- interdiction de consommer un fait non vérifié dans une affirmation;
-- détection déterministe de contradictions sur une même catégorie/clé;
-- validation ou rejet humain via API et interface française responsive;
-- mode Mock local, sans réseau, base ou service payant;
-- page de santé honnête : couverture et scan sont marqués non configurés.
+1. **Documents** : choisir CV, dossier de compétences, certificat de travail, diplôme ou attestation; déposer ou sélectionner plusieurs PDF/DOCX de 10 Mo maximum.
+2. Consulter le statut, la date, le texte extrait et sa provenance par page PDF ou section DOCX.
+3. **Base de vérité** : ajouter ou modifier un fait, puis le valider ou le refuser. Une extraction demeure `PROPOSED` jusqu'à une validation humaine.
+4. Les contradictions sont signalées et peuvent être fusionnées. La formulation fusionnée reste `PROPOSED` et doit être validée.
+5. Exporter la Base de vérité en JSON ou supprimer un document après confirmation. La suppression retire aussi ses faits.
 
-## Limites actuelles
+## Mode Démonstration séparé
 
-Ce commit n'importe pas encore de PDF/DOCX, ne persiste pas les données, ne scanne aucune source et ne génère/soumet aucun document. Les boutons correspondants sont donc absents. Le choix Next.js/PostgreSQL reste la cible; le jalon 0 conserve temporairement le serveur HTTP natif de Node et une mémoire locale afin de stabiliser ce socle avant le jalon suivant. Voir [ADR-0001](docs/adr/0001-runtime-bootstrap.md).
+Le mode privé est vide à la première utilisation. Pour afficher uniquement les anciennes fixtures fictives, sans les mélanger à la bibliothèque privée :
 
-## Données, sécurité et récupération
+```powershell
+$env:SWISSAPPLY_MODE="demo"
+npm start
+```
 
-- Ne jamais déposer de CV réel, secret ou export dans Git. `storage/` et `.env*` sont ignorés.
-- Les entrées sont traitées comme non fiables et rendues uniquement comme texte échappé.
-- Cette version ne réalise aucune requête sortante et ne stocke aucun mot de passe.
-- Sauvegarde/restauration : non applicable au stockage en mémoire. Le jalon PostgreSQL devra chiffrer les sauvegardes et tester la restauration.
+```bash
+SWISSAPPLY_MODE=demo npm start
+```
 
-## Feuille de route
+L'import et la suppression de documents sont désactivés dans ce mode.
 
-1. **Jalon 1** : stockage PostgreSQL, import PDF/DOCX isolé, validation complète, fusion et export.
-2. **Jalon 2** : worker durable, registre et trois adaptateurs autorisés, dédoublonnage, scoring et shortlist.
-3. **Jalon 3** : dossier par offre, génération DOCX/PDF et contrôles de vérité/ATS/rendu.
-4. **Jalon 4** : approbation immuable, formulaire de démonstration, extension MV3 et audit.
-5. **Jalon 5** : préproduction, scan 06:00 Europe/Paris, stockage privé, monitoring et sauvegardes.
+## Sécurité et limites
 
-La voie d'hébergement recommandée est un conteneur web et un conteneur worker long-lived, PostgreSQL managé et stockage objet privé. Aucun déploiement ni achat n'est effectué par ce dépôt.
+- Validation du nom, extension, MIME, signature et taille; rejet des traversées de chemin et noms internes opaques.
+- Écritures JSON atomiques et permissions privées quand le système les prend en charge; contenu affiché après échappement HTML.
+- Les fichiers importés sont des données non fiables. Aucun appel externe ou envoi n'est effectué.
+- Seuls des faits `VERIFIED` pourront alimenter une candidature; cette version ne comporte aucune candidature.
+- Pas d'OCR pour les PDF image, de chiffrement applicatif, d'accès concurrent, de sauvegarde automatique ou de restauration d'un export dans l'interface.
+- Scan Internet, horaire de 06:00, génération documentaire, LinkedIn et soumission restent à construire.
+
+## Docker facultatif
+
+```bash
+docker compose up --build
+```
+
+Le volume nommé conserve `/app/storage`. Docker n'est pas requis pour Windows.
+
+## Vérification
+
+`npm run check` compile en TypeScript strict, maintient les tests métier existants et teste de vrais PDF/DOCX fictifs : extraction, persistance après redémarrage, ajout/modification/validation/refus/fusion, contradiction, rejet, suppression, export et séparation Démonstration. La CI exécute ce contrôle sous Ubuntu et Windows.

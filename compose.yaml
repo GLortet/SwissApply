@@ -3,7 +3,8 @@ services:
     build: .
     environment:
       PORT: 3000
-      MOCK_MODE: "true"
+      SWISSAPPLY_STORAGE_DIR: /app/storage/private
     ports: ["3000:3000"]
-    read_only: true
-    tmpfs: ["/tmp"]
+    volumes: ["swissapply-data:/app/storage"]
+volumes:
+  swissapply-data:

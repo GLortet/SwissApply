@@ -11,6 +11,6 @@
 - `npm run build` : compiler.
 - `npm test` : tests du domaine.
 - `npm run check` : typecheck strict puis tests.
-- `npm run build && npm start` : application locale, mode Mock par défaut.
+- `npm run build && npm start` : application privée locale persistante par défaut.
 
 Ajouter les tests avec les règles métier. Ne masquer aucun échec. Toute fonction incomplète doit être annoncée comme telle, pas simulée.
