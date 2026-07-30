@@ -62,9 +62,11 @@ L'import et la suppression de documents sont désactivés dans ce mode.
 - Le schéma persistant est versionné. Une migration crée une sauvegarde locale de `data.json` avant écriture et corrige les noms présentant un mojibake UTF-8 identifiable sans ambiguïté.
 - Les fichiers importés sont des données non fiables. Aucun appel externe ou envoi n'est effectué.
 - Seuls des faits `VERIFIED` pourront alimenter une candidature; cette version ne comporte aucune candidature.
-- L'analyse est déterministe : elle normalise Unicode, espaces, puces et tirets, reconnaît les principales rubriques françaises et analyse des expériences réparties sur plusieurs lignes (entreprise/poste ou poste/entreprise, lieu et périodes). Les puces sous une expérience peuvent produire actions, résultats, métriques et compétences connues.
+- L'analyse est déterministe : elle normalise Unicode, espaces, puces et tirets, puis construit des blocs intermédiaires sourcés avant de produire les faits. Elle reconnaît les principales rubriques françaises et analyse des expériences sur deux à cinq lignes, y compris entreprise en casse normale ou avec suffixe, lieu géographique, poste et période sur la même ligne ou sur des lignes distinctes.
 - Les périodes reconnues couvrent notamment les années, `MM/YYYY`, les mois français, `depuis`, `présent` et `aujourd’hui`. Les métriques reconnues incluent pourcentages, euros, CHF, effectifs, volumes et délais. Le texte extrait original reste consultable comme preuve et n’est pas remplacé par sa version normalisée.
 - Elle ne déduit jamais une information absente. Les mises en page complexes, tableaux, colonnes PDF mal ordonnées, intitulés inhabituels et rattachements ambigus peuvent rester non extraits ou `NEEDS_CONFIRMATION` et exigent une relecture humaine.
+- Une expérience ambiguë reçoit une entité `experience:unresolved:<document>:<ancre>` isolée et ne participe jamais aux contradictions. La rubrique Langues n'accepte que des langues et niveaux explicitement reconnus; elle s'arrête à la première ligne non linguistique.
+- La correction d'un fait permet de modifier sa catégorie, son entité, son champ, sa valeur structurée et sa formulation. Toute correction revient à `PROPOSED` avant validation humaine.
 - Pas d'OCR pour les PDF image, de chiffrement applicatif, d'accès concurrent, de sauvegarde automatique ou de restauration d'un export dans l'interface.
 - Scan Internet, horaire de 06:00, génération documentaire, LinkedIn et soumission restent à construire.
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { consolidateFacts, findContradictions } from "./truth.js";
-import { normalizeDocumentText, proposeFacts } from "./proposals.js";
+import { normalizeDocumentText, parseDocumentBlocks, proposeFacts } from "./proposals.js";
 const realistic=`EXPÉRIENCE PROFESSIONNELLE
 ATELIER ALPINA
 Responsable amélioration continue
@@ -25,4 +25,23 @@ test("consolide deux sources et ne confond pas deux expériences",()=>{const dup
 FABRIQUE BETA
 Ingénieur méthodes
 Vaud • 2018 – 2020`);assert.equal(findContradictions([...duplicate,...other]).length,0);});
-test("détecte une vraie contradiction de date pour la même expérience",()=>{const first=extract("a","Fin ATELIER ALPINA : avril 2025"),second=extract("b","Fin ATELIER ALPINA : mai 2025");const contradictions=findContradictions([...first,...second]);assert.equal(contradictions.length,1);assert.equal(contradictions[0]?.field,"endDate");});
+test("détecte une vraie contradiction de date pour la même expérience",()=>{const first=extract("a","EXPÉRIENCES\nATELIER ALPINA\nResponsable Lean\nGenève • 2021 – 2024"),second=extract("b","EXPÉRIENCES\nATELIER ALPINA\nResponsable Lean\nGenève • 2021 – 2025");const contradictions=findContradictions([...first,...second]);assert.equal(contradictions.length,1);assert.equal(contradictions[0]?.field,"endDate");});
+test("parse les blocs représentatifs avec une classification stricte",()=>{const text=`EXPÉRIENCES
+CABLERIES ALPINA SARL
+Moselle, Forbach
+Responsable Lean
+09.2024 – 05.2025
+
+ATELIER BETA
+Ingénieur Méthodes Industrialisation | 05.2022 – 09.2024
+
+LANGUES
+Anglais : niveau professionnel opérationnel – TOEIC 815
+Allemand : niveau scolaire / notions
+
+CHALLENGES
+Aligner les démarches d’amélioration continue avec les enjeux du site
+Animer les démarches terrain et accompagner les équipes`;
+ const blocks=parseDocumentBlocks("doc-a",[{label:"Page 1",text}]),facts=proposeFacts("doc-a","CV fictif.pdf",[{label:"Page 1",text}]);assert.ok(blocks.every(block=>block.documentId==="doc-a"&&block.startLine<=block.endLine));assert.ok(facts.some(f=>f.field==="company"&&f.structuredValue==="CABLERIES ALPINA SARL"));assert.ok(facts.some(f=>f.field==="company"&&f.structuredValue==="ATELIER BETA"));assert.ok(facts.some(f=>f.field==="role"&&f.structuredValue==="Responsable Lean"));assert.ok(facts.some(f=>f.field==="role"&&f.structuredValue==="Ingénieur Méthodes Industrialisation"));assert.ok(facts.some(f=>f.field==="location"&&f.structuredValue==="Moselle, Forbach"));assert.ok(!facts.some(f=>f.field==="location"&&/Responsable|Ingénieur/.test(f.canonical)));const languages=facts.filter(f=>f.category==="LANGUAGE");assert.equal(languages.length,2);assert.ok(languages.some(f=>/^Anglais/.test(f.canonical)));assert.ok(languages.some(f=>/^Allemand/.test(f.canonical)));assert.ok(!facts.some(f=>/Challenges|Aligner les démarches|Animer les démarches terrain/i.test(f.canonical)));assert.ok(!facts.some(f=>f.entityId.startsWith("experience:inconnue-")));});
+test("isole les blocs unresolved et interdit leurs contradictions",()=>{const a=extract("doc-a","EXPÉRIENCES\nResponsable méthodes\n2021 – 2022"),b=extract("doc-b","EXPÉRIENCES\nFormateur certifié PCM\n2021 – 2023");const entities=[...new Set([...a,...b].filter(f=>f.category==="EXPERIENCE").map(f=>f.entityId))];assert.equal(entities.length,2);assert.ok(entities.every(id=>id.startsWith("experience:unresolved:")));assert.equal(findContradictions([...a,...b]).length,0);});
+test("des formulations de postes proches ne créent pas de contradiction",()=>{const first=extract("a","EXPÉRIENCES\nALPINA SARL\nFormateur indépendant\nParis • 2020 – 2021"),second=extract("b","EXPÉRIENCES\nALPINA SARL\nFormateur certifié PCM\nParis • 2020 – 2021");assert.equal(findContradictions([...first,...second]).length,0);});
