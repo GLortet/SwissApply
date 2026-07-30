@@ -2,11 +2,12 @@
 
 | Menace | Contrôle présent | Suite requise |
 |---|---|---|
-| Prompt injection dans un document/offre | contenu traité en donnée, rendu échappé, aucune exécution d'outil | délimitation des prompts et tests fournisseur |
-| Invention de faits | garde `assertClaimTraceable` sur faits vérifiés | contrôle de chaque phrase générée |
-| Fuite de données/secret | fixtures fictives, ignores Git, aucun appel sortant | chiffrement objet/base, rétention, logs expurgés |
-| Envoi non autorisé | aucune route d'envoi dans ce jalon | approbation hashée, allowlist, audit et idempotence |
-| Fichier hostile | import absent | limites MIME/taille, analyse isolée, refus de macros |
-| SSRF/XSS/SQL | aucune récupération URL/SQL; échappement HTML | allowlist URL, requêtes paramétrées, CSP/CSRF |
+| Injection dans un document | prompt système traitant le document comme donnée non fiable, aucune instruction/outils web, Structured Outputs stricts | évaluations adversariales fictives |
+| Invention ou preuve fabriquée | section et citation vérifiées côté serveur; réponse entière refusée si preuve introuvable; jamais `VERIFIED` automatiquement | revue humaine obligatoire |
+| Fuite de document/secret | seuls textes/sections extraits envoyés en mode IA explicite; `store:false`; clé serveur; aucune réponse brute persistée/loguée | chiffrement objet/base et politique de rétention |
+| Panne/coût du fournisseur | délai 45 s, deux retries SDK pour erreurs transitoires, tokens affichés, aucune mutation/fallback silencieux | quotas configurables |
+| Envoi non autorisé | aucune route d’envoi ni outil externe | approbation hashée future |
+| Fichier hostile | MIME, extension, signature, nom et limite 10 Mo; noms opaques | analyse antivirus future |
+| SSRF/XSS/SQL | aucune récupération URL/SQL; texte échappé | CSP/CSRF avant hébergement |
 
-Frontières : navigateur non fiable → API; document/offre non fiable → extracteur; fournisseur IA externe; worker → sources publiques autorisées. Toute authentification, CAPTCHA, question sensible ou divergence matérielle impose l'arrêt.
+Frontières : navigateur non fiable → API; document non fiable → extracteur/analyseur; fournisseur IA externe. Les clés, réponses brutes et documents complets ne sont jamais journalisés.

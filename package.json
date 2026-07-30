@@ -7,7 +7,7 @@
     "build": "tsc -p tsconfig.json",
     "dev": "npm run build && node --watch dist/apps/web/server.js",
     "start": "node dist/apps/web/server.js",
-    "test": "npm run build && node --test dist/packages/domain/*.test.js dist/packages/persistence/*.test.js dist/apps/web/*.test.js",
+    "test": "npm run build && node scripts/run-tests.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "check": "npm run typecheck && npm test"
   },
@@ -27,6 +27,8 @@
   "dependencies": {
     "busboy": "^1.6.0",
     "mammoth": "^1.10.0",
-    "pdfjs-dist": "^5.4.296"
+    "openai": "^6.15.0",
+    "pdfjs-dist": "^5.4.296",
+    "zod": "^4.4.3"
   }
 }

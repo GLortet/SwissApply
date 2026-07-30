@@ -82,3 +82,26 @@ Le volume nommé conserve `/app/storage`. Docker n'est pas requis pour Windows.
 ## Vérification
 
 `npm run check` compile en TypeScript strict, maintient les tests métier existants et teste de vrais PDF/DOCX fictifs : extraction, persistance après redémarrage, ajout/modification/validation/refus/fusion, contradiction, rejet, suppression, export et séparation Démonstration. La CI exécute ce contrôle sous Ubuntu et Windows.
+
+## Analyse IA structurée (optionnelle)
+
+Le mode par défaut reste local et hors ligne. Pour demander explicitement l’analyse IA sous PowerShell :
+
+```powershell
+$env:SWISSAPPLY_ANALYSIS_MODE="ai"
+$env:SWISSAPPLY_OPENAI_MODEL="gpt-5.6-terra"
+$env:OPENAI_API_KEY="<clé côté serveur>"
+npm start
+```
+
+Sous Linux/macOS :
+
+```bash
+SWISSAPPLY_ANALYSIS_MODE=ai SWISSAPPLY_OPENAI_MODEL=gpt-5.6-terra OPENAI_API_KEY='<clé>' npm start
+```
+
+L’analyse IA utilise le SDK officiel, la Responses API et un schéma Zod strict, avec `store: false`, raisonnement faible, aucun outil externe, un délai de 45 secondes et deux nouvelles tentatives maximum pour les erreurs transitoires. Le modèle est configurable; sa disponibilité doit être vérifiée sur le compte OpenAI concerné. Seuls le texte déjà extrait et ses libellés de sections sont transmis, jamais le PDF/DOCX original.
+
+Chaque valeur doit fournir une section et une citation retrouvable. Le serveur refuse atomiquement une réponse invalide ou non prouvée, génère lui-même les identifiants stables, et conserve uniquement les faits validés avec la méthode, le modèle, la version du prompt et la date — jamais la réponse OpenAI brute. L’import conserve le document même si son analyse échoue. Le bouton **Analyse locale déterministe** impose explicitement le filet de secours hors ligne; aucun fallback silencieux n’existe.
+
+Sans `OPENAI_API_KEY`, le mode `ai` démarre mais l’import/réanalyse affiche une erreur explicite sans modifier la Base de vérité. Les tests CI utilisent un faux fournisseur et ne réalisent aucun appel réseau. Aucun essai IA réel n’est inclus dans `npm run check`.

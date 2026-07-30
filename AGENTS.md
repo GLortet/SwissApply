@@ -14,3 +14,9 @@
 - `npm run build && npm start` : application privée locale persistante par défaut.
 
 Ajouter les tests avec les règles métier. Ne masquer aucun échec. Toute fonction incomplète doit être annoncée comme telle, pas simulée.
+
+## Analyse documentaire
+- `SWISSAPPLY_ANALYSIS_MODE=deterministic` reste le mode hors ligne et de secours explicite.
+- Le mode `ai` utilise uniquement le texte extrait, `store: false`, aucun outil, et doit échouer sans mutation si la clé, le schéma ou une preuve manque. Aucun fallback silencieux.
+- Ne jamais journaliser la clé, la réponse brute du fournisseur ou le texte intégral des documents.
+- Les tests automatisés injectent un faux fournisseur et n'effectuent aucun appel réseau.
