@@ -37,7 +37,7 @@ Sans variable, le stockage est `storage/private/`, toujours ignoré par Git.
 2. Consulter le statut, la date, le texte extrait et sa provenance par page PDF ou section DOCX.
 3. **Base de vérité** : examiner les faits atomiques regroupés par catégorie, entité et champ; filtrer par statut/catégorie, rechercher, consulter toutes les sources, puis modifier, valider ou refuser. Une extraction demeure `PROPOSED` jusqu'à une validation humaine.
 4. Les doublons exacts sont consolidés avec plusieurs sources. Une contradiction n'est signalée que pour deux valeurs différentes du même champ de la même entité; une fusion reste `PROPOSED` et doit être validée.
-5. **Réanalyser les documents** reconstruit les propositions depuis les textes déjà conservés. Les faits manuels, `VERIFIED` et `REJECTED` sont préservés; les anciennes propositions automatiques sont archivées, jamais supprimées silencieusement.
+5. **Réanalyser les documents** reconstruit d'abord les propositions depuis les textes déjà conservés, puis affiche un bilan détaillé. Les faits manuels, `VERIFIED`, `REJECTED` et déjà archivés sont préservés. Les propositions devenues obsolètes ne sont archivées qu'après une analyse réussie; si aucun fait ne peut être produit depuis des documents non vides, la réanalyse échoue sans modifier la Base de vérité.
 6. Exporter la Base de vérité en JSON ou supprimer un document après confirmation. La suppression retire aussi ses faits.
 
 ## Mode Démonstration séparé
@@ -62,7 +62,9 @@ L'import et la suppression de documents sont désactivés dans ce mode.
 - Le schéma persistant est versionné. Une migration crée une sauvegarde locale de `data.json` avant écriture et corrige les noms présentant un mojibake UTF-8 identifiable sans ambiguïté.
 - Les fichiers importés sont des données non fiables. Aucun appel externe ou envoi n'est effectué.
 - Seuls des faits `VERIFIED` pourront alimenter une candidature; cette version ne comporte aucune candidature.
-- L'analyse est déterministe : elle reconnaît les libellés et structures explicites, mais ne déduit pas une information absente. Les mises en page complexes, tableaux, formulations libres et rattachements ambigus peuvent rester non extraits ou `NEEDS_CONFIRMATION` et exigent une relecture humaine.
+- L'analyse est déterministe : elle normalise Unicode, espaces, puces et tirets, reconnaît les principales rubriques françaises et analyse des expériences réparties sur plusieurs lignes (entreprise/poste ou poste/entreprise, lieu et périodes). Les puces sous une expérience peuvent produire actions, résultats, métriques et compétences connues.
+- Les périodes reconnues couvrent notamment les années, `MM/YYYY`, les mois français, `depuis`, `présent` et `aujourd’hui`. Les métriques reconnues incluent pourcentages, euros, CHF, effectifs, volumes et délais. Le texte extrait original reste consultable comme preuve et n’est pas remplacé par sa version normalisée.
+- Elle ne déduit jamais une information absente. Les mises en page complexes, tableaux, colonnes PDF mal ordonnées, intitulés inhabituels et rattachements ambigus peuvent rester non extraits ou `NEEDS_CONFIRMATION` et exigent une relecture humaine.
 - Pas d'OCR pour les PDF image, de chiffrement applicatif, d'accès concurrent, de sauvegarde automatique ou de restauration d'un export dans l'interface.
 - Scan Internet, horaire de 06:00, génération documentaire, LinkedIn et soumission restent à construire.
 
