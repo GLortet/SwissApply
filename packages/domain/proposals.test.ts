@@ -45,3 +45,26 @@ Animer les démarches terrain et accompagner les équipes`;
  const blocks=parseDocumentBlocks("doc-a",[{label:"Page 1",text}]),facts=proposeFacts("doc-a","CV fictif.pdf",[{label:"Page 1",text}]);assert.ok(blocks.every(block=>block.documentId==="doc-a"&&block.startLine<=block.endLine));assert.ok(facts.some(f=>f.field==="company"&&f.structuredValue==="CABLERIES ALPINA SARL"));assert.ok(facts.some(f=>f.field==="company"&&f.structuredValue==="ATELIER BETA"));assert.ok(facts.some(f=>f.field==="role"&&f.structuredValue==="Responsable Lean"));assert.ok(facts.some(f=>f.field==="role"&&f.structuredValue==="Ingénieur Méthodes Industrialisation"));assert.ok(facts.some(f=>f.field==="location"&&f.structuredValue==="Moselle, Forbach"));assert.ok(!facts.some(f=>f.field==="location"&&/Responsable|Ingénieur/.test(f.canonical)));const languages=facts.filter(f=>f.category==="LANGUAGE");assert.equal(languages.length,2);assert.ok(languages.some(f=>/^Anglais/.test(f.canonical)));assert.ok(languages.some(f=>/^Allemand/.test(f.canonical)));assert.ok(!facts.some(f=>/Challenges|Aligner les démarches|Animer les démarches terrain/i.test(f.canonical)));assert.ok(!facts.some(f=>f.entityId.startsWith("experience:inconnue-")));});
 test("isole les blocs unresolved et interdit leurs contradictions",()=>{const a=extract("doc-a","EXPÉRIENCES\nResponsable méthodes\n2021 – 2022"),b=extract("doc-b","EXPÉRIENCES\nFormateur certifié PCM\n2021 – 2023");const entities=[...new Set([...a,...b].filter(f=>f.category==="EXPERIENCE").map(f=>f.entityId))];assert.equal(entities.length,2);assert.ok(entities.every(id=>id.startsWith("experience:unresolved:")));assert.equal(findContradictions([...a,...b]).length,0);});
 test("des formulations de postes proches ne créent pas de contradiction",()=>{const first=extract("a","EXPÉRIENCES\nALPINA SARL\nFormateur indépendant\nParis • 2020 – 2021"),second=extract("b","EXPÉRIENCES\nALPINA SARL\nFormateur certifié PCM\nParis • 2020 – 2021");assert.equal(findContradictions([...first,...second]).length,0);});
+test("exclut les derniers faux companies, roles, skills et formations",()=>{const text=`EXPÉRIENCES
+AUTRES EXPÉRIENCES
+EXPÉRIENCE INDUSTRIELLE – SUITE
+Lean Six Sigma, DMAIC, AMDEC, amélioration/refonte de postes, automatisation, VBA/MTM
+Mon approche combine rigueur technique, sens du résultat et coordination transverse.
+ALPINA SAS
+Responsable méthodes
+Metz • 2021 – 2022
+ThyssenKrupp Presta | Florange, France
+Formateur indépendant Depuis 2025
+
+COMPÉTENCES
+Industrialisation, SolidWorks, implantation 3D, outillages, standards de montage
+chiffrée et documentée
+en combinant rigueur méthodes
+les coûts et la performance
+puis à fédérer les métiers jusqu’à la mise en œuvre terrain
+
+Cursus Universitaire
+DEUG Informatique et Mathématiques – Université de Metz
+Licence Mécanique – Université de Metz
+Master Sciences de l’Ingénieur – Université de Metz`;
+ const facts=extract("semantic",text);assert.ok(!facts.some(f=>f.field==="company"&&/AUTRES EXPÉRIENCES|EXPÉRIENCE INDUSTRIELLE/.test(f.canonical)));assert.ok(!facts.some(f=>f.field==="role"&&/Lean Six Sigma|Industrialisation, SolidWorks|Mon approche/.test(f.canonical)));assert.ok(facts.some(f=>f.field==="company"&&f.structuredValue==="ThyssenKrupp Presta"));assert.ok(facts.some(f=>f.field==="location"&&f.structuredValue==="Florange, France"));assert.ok(!facts.some(f=>f.category==="SKILL"&&/chiffrée et documentée|en combinant|les coûts|puis à fédérer/.test(f.canonical)));assert.ok(!facts.some(f=>f.canonical==="Cursus Universitaire"));for(const diploma of ["DEUG Informatique et Mathématiques – Université de Metz","Licence Mécanique – Université de Metz","Master Sciences de l’Ingénieur – Université de Metz"]){assert.ok(facts.some(f=>f.category==="EDUCATION"&&f.canonical==diploma));assert.ok(!facts.some(f=>f.category==="SKILL"&&f.canonical==diploma));}const formateur=facts.filter(f=>f.entityId.includes("thyssenkrupp-presta-formateur-independant"));assert.ok(formateur.some(f=>f.field==="startDate"&&f.structuredValue==="2025"));assert.ok(!formateur.some(f=>f.structuredValue==="2021"||f.structuredValue==="2022"));});
