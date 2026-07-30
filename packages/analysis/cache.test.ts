@@ -1,0 +1,9 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { ANALYSIS_SCHEMA_VERSION, analysisCacheKey, bindCachedAnalysis, documentFingerprint, findCachedAnalysis, textSimilarity, type AnalysisCacheEntry } from "./cache.js";
+import type { AnalysisDocument, AnalysisResult } from "./analyzer.js";
+
+const document:AnalysisDocument={id:"doc-a",name:"A.docx",sections:[{label:"Section 1",text:"Atelier fictif\nResponsable méthodes"}]};
+const result:AnalysisResult={facts:[],blocksDetected:1,method:"OPENAI",model:"model-a",promptVersion:"prompt-a",usage:{input:10,output:5}};
+test("le cache dépend exactement du texte, modèle, prompt et schéma",()=>{const fingerprint=documentFingerprint(document),entry:AnalysisCacheEntry={key:analysisCacheKey(fingerprint,"model-a","prompt-a"),documentFingerprint:fingerprint,model:"model-a",promptVersion:"prompt-a",schemaVersion:ANALYSIS_SCHEMA_VERSION,createdAt:new Date().toISOString(),result};assert.ok(findCachedAnalysis([entry],document,"model-a","prompt-a").entry);assert.equal(findCachedAnalysis([entry],{...document,sections:[{label:"Section 1",text:"Texte modifié"}]},"model-a","prompt-a").entry,undefined);assert.equal(findCachedAnalysis([entry],document,"model-b","prompt-a").entry,undefined);assert.equal(findCachedAnalysis([entry],document,"model-a","prompt-b").entry,undefined);assert.equal(findCachedAnalysis([entry],document,"model-a","prompt-a","schema-v2").entry,undefined);assert.equal(bindCachedAnalysis(entry,{...document,id:"doc-b",name:"B.docx"}).facts.length,0);});
+test("signale seulement les textes très proches",()=>{assert.ok(textSimilarity("Lean SMED atelier amélioration continue","Lean SMED atelier amélioration continue version")>.8);assert.ok(textSimilarity("Projet pompe industriel","Dispositif ergonomique anti TMS")<.3);});

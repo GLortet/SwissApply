@@ -105,3 +105,11 @@ L’analyse IA utilise le SDK officiel, la Responses API et un schéma Zod stric
 Chaque valeur doit fournir une section et une citation retrouvable. Le serveur refuse atomiquement une réponse invalide ou non prouvée, génère lui-même les identifiants stables, et conserve uniquement les faits validés avec la méthode, le modèle, la version du prompt et la date — jamais la réponse OpenAI brute. L’import conserve le document même si son analyse échoue. Le bouton **Analyse locale déterministe** impose explicitement le filet de secours hors ligne; aucun fallback silencieux n’existe.
 
 Sans `OPENAI_API_KEY`, le mode `ai` démarre mais l’import/réanalyse affiche une erreur explicite sans modifier la Base de vérité. Les tests CI utilisent un faux fournisseur et ne réalisent aucun appel réseau. Aucun essai IA réel n’est inclus dans `npm run check`.
+
+## Fiabilisation et maîtrise du coût des réanalyses
+
+Une réanalyse possède désormais un verrou serveur mono-utilisateur et un verrou d’interface : une seconde requête reçoit HTTP 409, les boutons restent désactivés avec un compteur de durée, puis sont toujours réactivés. Les documents sans texte sont ignorés sans appel fournisseur.
+
+Les analyses validées sont mises en cache par empreinte exacte du texte extrait, modèle, version de prompt et version de schéma. Une réanalyse ordinaire réutilise ce cache; le bouton de réanalyse forcée exige une confirmation explicite. Le cache persiste uniquement les faits structurés validés et leurs métadonnées, jamais la réponse brute OpenAI ni une clé. Le bilan distingue documents appelés, réutilisés et vides, ainsi que les tokens réellement consommés. Les doublons exacts sont signalés et une similarité textuelle déterministe signale les versions potentiellement redondantes sans suppression automatique.
+
+Les expériences ne sont rapprochées que sur une entreprise normalisée et une période compatible. Les réalisations reçoivent d’abord un identifiant incluant le document; elles ne sont consolidées entre documents que si leurs ancres sémantiques normalisées sont identiques. Une collision de `localRef` entre deux réponses ne suffit jamais à les fusionner.
