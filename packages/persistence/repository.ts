@@ -1,0 +1,18 @@
+import { randomUUID } from "node:crypto";
+import { copyFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
+import type { CandidateFact, FactCategory, SourceRef } from "../domain/truth.js";
+export const SCHEMA_VERSION=2;
+export const documentTypes=["CV","COMPETENCY_FILE","WORK_CERTIFICATE","DIPLOMA","ATTESTATION"] as const;
+export type DocumentType=typeof documentTypes[number];
+export interface StoredDocument { id:string; originalName:string; type:DocumentType; mimeType:string; importedAt:string; status:"EXTRACTED"; extractedText:string; sections:Array<{label:string;text:string}>; storageName:string }
+export interface PrivateData { schemaVersion:number; documents:StoredDocument[]; facts:CandidateFact[] }
+export interface Repository { read():Promise<PrivateData>; write(data:PrivateData):Promise<void>; saveOriginal(name:string,contents:Buffer):Promise<void>; readOriginal(name:string):Promise<Buffer>; deleteOriginal(name:string):Promise<void> }
+const fixMojibake=(value:string)=>/[ÃÂ]/.test(value)?Buffer.from(value,"latin1").toString("utf8"):value;
+function migrate(raw:unknown):PrivateData{const legacy=raw as {schemaVersion?:number;documents?:StoredDocument[];facts?:Array<Partial<CandidateFact>&{source?:SourceRef}>};return {schemaVersion:SCHEMA_VERSION,documents:(legacy.documents??[]).map(document=>({...document,originalName:fixMojibake(document.originalName)})),facts:(legacy.facts??[]).map(old=>{const source=old.source??{documentId:"migration",name:"Migration",location:"Inconnue"};return {id:old.id??randomUUID(),type:old.type??"LEGACY.STATEMENT",category:(old.category??"SKILL") as FactCategory,entityId:old.entityId??`legacy:${old.key??randomUUID()}`,field:old.field??"statement",key:old.key??randomUUID(),canonical:old.canonical??"",...(old.structuredValue?{structuredValue:old.structuredValue}:{}),source,sources:old.sources?.length?old.sources:[source],confidence:old.confidence??.5,status:old.status??"NEEDS_CONFIRMATION",allowedAlternatives:old.allowedAlternatives??[],tags:old.tags??[],active:old.active??true,origin:old.origin??"AUTOMATIC",history:[...(old.history??[]),{at:new Date().toISOString(),action:"MIGRATED",actor:"system"}],...(old.validatedAt?{validatedAt:old.validatedAt}:{}),...(old.validUntil?{validUntil:old.validUntil}:{})};})};}
+export class LocalRepository implements Repository {
+ constructor(private readonly root=process.env.SWISSAPPLY_STORAGE_DIR??path.resolve("storage/private")){} private get database(){return path.join(this.root,"data.json")}
+ async read():Promise<PrivateData>{try{const raw=JSON.parse(await readFile(this.database,"utf8")) as {schemaVersion?:number};if(raw.schemaVersion===SCHEMA_VERSION)return raw as PrivateData;await copyFile(this.database,`${this.database}.backup-v${raw.schemaVersion??1}-${Date.now()}`);const migrated=migrate(raw);await this.write(migrated);return migrated;}catch(error){if((error as NodeJS.ErrnoException).code==="ENOENT")return {schemaVersion:SCHEMA_VERSION,documents:[],facts:[]};throw error;}}
+ async write(data:PrivateData){await mkdir(this.root,{recursive:true});const temporary=`${this.database}.${randomUUID()}.tmp`;await writeFile(temporary,JSON.stringify({...data,schemaVersion:SCHEMA_VERSION},null,2),{mode:0o600});await rename(temporary,this.database)}
+ async saveOriginal(name:string,contents:Buffer){await mkdir(path.join(this.root,"originals"),{recursive:true});await writeFile(path.join(this.root,"originals",path.basename(name)),contents,{mode:0o600})} async readOriginal(name:string){return readFile(path.join(this.root,"originals",path.basename(name)))} async deleteOriginal(name:string){await rm(path.join(this.root,"originals",path.basename(name)),{force:true})}
+}
