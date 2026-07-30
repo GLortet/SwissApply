@@ -1,0 +1,20 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { OpenAIAnalyzer, OpenAIResponsesClient, type StructuredExtractionClient } from "./openai.js";
+import type { ProfessionalExtraction } from "./schema.js";
+
+const quote=(value:string,sectionLabel="Page 1",uncertaintyReason:string|null=null)=>({value,sectionLabel,quote:value,confidence:.91,uncertaintyReason});
+const output:ProfessionalExtraction={identity:[{field:"fullName" as const,data:quote("Camille Exemple")}],experiences:[{localRef:"exp-alpina",company:quote("Atelier Alpina"),role:quote("Responsable amélioration continue"),location:null,startDate:quote("septembre 2021"),endDate:null,responsibilities:[quote("Animation des équipes")],achievements:[{localRef:"ach-1",context:null,action:quote("Réduction des rebuts de 25 %"),result:quote("25 %"),metrics:[quote("25 %")]}],skills:[quote("SMED")]}],skills:[],education:[quote("Diplôme d’ingénieur industriel")],languages:[quote("Anglais : courant")],ambiguities:[{category:"EXPERIENCE" as const,field:"location",data:quote("Site lémanique","Page 1","Lieu exact ambigu"),experienceRef:"exp-alpina"}]};
+const text=["Camille Exemple","Atelier Alpina","Responsable amélioration continue","septembre 2021","Animation des équipes","Réduction des rebuts de 25 %","25 %","SMED","Diplôme d’ingénieur industriel","Anglais : courant","Site lémanique"].join("\n");
+const document={id:"doc-fictif",name:"CV fictif.docx",sections:[{label:"Page 1",text}]};
+class Fake implements StructuredExtractionClient {constructor(private readonly value:unknown){}async extract(){return {output:this.value,model:"fake-extractor",usage:{input:200,output:80}};}}
+
+test("convertit une réponse professionnelle sourcée sans invention ni validation automatique",async()=>{const result=await new OpenAIAnalyzer(new Fake(output)).analyze(document);assert.equal(result.method,"OPENAI");assert.deepEqual(result.usage,{input:200,output:80});for(const expected of ["Atelier Alpina","Responsable amélioration continue","septembre 2021","Réduction des rebuts de 25 %","25 %","SMED","Diplôme d’ingénieur industriel","Anglais : courant"])assert.ok(result.facts.some(fact=>fact.canonical===expected),expected);assert.ok(result.facts.every(fact=>fact.status!=="VERIFIED"));assert.ok(result.facts.every(fact=>fact.source.quote&&fact.source.section==="Page 1"));assert.equal(result.facts.find(fact=>fact.field==="location")?.status,"NEEDS_CONFIRMATION");assert.equal(result.facts.some(fact=>fact.field==="endDate"),false);const achievement=result.facts.find(fact=>fact.category==="ACHIEVEMENT"&&fact.field==="experienceId");assert.ok(achievement?.structuredValue?.startsWith("experience:"));});
+
+test("refuse entièrement une citation absente",async()=>{const invalid=structuredClone(output);invalid.skills=[quote("Compétence inventée")];await assert.rejects(new OpenAIAnalyzer(new Fake(invalid)).analyze(document),/Citation introuvable/);});
+
+test("produit des identifiants stables quand l’ordre change",async()=>{const reversed=structuredClone(output);reversed.identity.reverse();reversed.experiences[0]!.responsibilities.reverse();reversed.experiences[0]!.skills.reverse();const first=await new OpenAIAnalyzer(new Fake(output)).analyze(document),second=await new OpenAIAnalyzer(new Fake(reversed)).analyze(document);assert.deepEqual(first.facts.map(f=>f.id).sort(),second.facts.map(f=>f.id).sort());});
+
+test("refuse un schéma invalide et une référence d’expérience inconnue",async()=>{await assert.rejects(new OpenAIAnalyzer(new Fake({experiences:[]})).analyze(document),/Réponse IA invalide/);const invalid=structuredClone(output);invalid.ambiguities[0]!.experienceRef="absente";await assert.rejects(new OpenAIAnalyzer(new Fake(invalid)).analyze(document),/Référence d’expérience inconnue/);});
+
+test("signale explicitement la clé absente",()=>{const previous=process.env.OPENAI_API_KEY;delete process.env.OPENAI_API_KEY;try{assert.throws(()=>new OpenAIResponsesClient("modèle-fictif"),/OPENAI_API_KEY/);}finally{if(previous)process.env.OPENAI_API_KEY=previous;}});
